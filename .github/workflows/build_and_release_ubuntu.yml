@@ -1,0 +1,43 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Install dependencies
+      run: sudo apt-get install -y g++
+    - name: Build
+      run: g++ -o lru lru.cpp
+    - name: Extract version
+      id: extract_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/release-}" >> $GITHUB_OUTPUT
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: lru
+        path: ./lru
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      TAG_NAME: 'release-${{needs.extract_version.outputs.version}}'
+      RELEASE_NAME: 'Release ${{needs.extract_version.outputs.version}} Ubuntu'
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: lru
+    - name: Create release
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
+        files: ./lru
